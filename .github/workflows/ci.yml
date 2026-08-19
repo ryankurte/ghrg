@@ -60,6 +60,9 @@ jobs:
       if: ${{ matrix.use_cross }}
       run: cargo install cross --git https://github.com/cross-rs/cross --rev f86fd03 --locked
 
+    - name: Install cargo sbom
+      run: cargo install cargo-sbom --locked
+
     - name: Build cli (cross)
       if: ${{ matrix.use_cross }}
       run: cross build --target ${{ matrix.target }} --release --locked
