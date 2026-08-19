@@ -148,7 +148,7 @@ impl ReleaseInfo {
                     .iter()
                     .filter_map(|asset| {
                         let name = asset.get("name")?.as_str()?.to_string();
-                        let download_url = asset.get("browser_download_url")?.as_str()?.to_string();
+                        let download_url = asset.get("url")?.as_str()?.to_string();
                         Some(ReleaseAsset { name, download_url })
                     })
                     .collect()
