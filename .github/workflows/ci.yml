@@ -40,9 +40,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            use_cross: false
+            use_cross: true
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             use_cross: true
@@ -100,7 +100,6 @@ jobs:
       with:
         name: ghrg-${{ matrix.target }}
         path: |
-          ghrg_*.deb
           ghrg-${{ matrix.target }}.tgz
 
     - name: Upload binary archive to release
