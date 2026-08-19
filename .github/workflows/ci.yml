@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: FranzDiebold/github-env-vars-action@v1.2.1
+
+    - name: Configure toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1.16.1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Run tests
+      run: cargo test --workspace --all-features
+
+  build:
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.os == 'windows-latest'}}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            use_cross: false
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            use_cross: true
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            use_cross: false
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            use_cross: false
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: FranzDiebold/github-env-vars-action@v1.2.1
+      
+    - name: Configure toolchain
+      uses: actions-rust-lang/setup-rust-toolchain@v1.16.1
+      with:
+        target:  ${{ matrix.target }}
+        override: true
+        cache-key: ${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install cross
+      if: ${{ matrix.use_cross }}
+      run: cargo install cross --git https://github.com/cross-rs/cross --rev f86fd03 --locked
+
+    - name: Build cli (cross)
+      if: ${{ matrix.use_cross }}
+      run: cross build --target ${{ matrix.target }} --release --locked
+
+    - name: Build cli (native)
+      if: ${{ !matrix.use_cross }}
+      run: cargo build --target ${{ matrix.target }} --release --locked
+
+    - name: Copy out the binary
+      run: |
+        cp target/${{ matrix.target }}/release/ghrg${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+    
+    - name: Generate SBOM
+      run: cargo-sbom --output-format=cyclone_dx_json_1_4 > ghrg.json
+
+    - name: Generate artifact attestation
+      uses: actions/attest@v4
+      with:
+        subject-path: ghrg${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+        sbom-path: ghrg.json
+
+    - name: Archive the binary
+      run: tar -czvf ghrg-${{ matrix.target }}.tgz ghrg${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: ghrg-${{ matrix.target }}
+        path: |
+          ghrg_*.deb
+          ghrg-${{ matrix.target }}.tgz
+
+    - name: Upload binary archive to release
+      if: ${{ startsWith(github.ref, 'refs/tags/v') && matrix.os != 'ubuntu-latest' }}
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ghrg-${{ matrix.target }}.tgz
+        tag: ${{ github.ref }}
+        overwrite: true
+        file_glob: true
+
+  release:
+    name: Create release on tag
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    steps:
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        id: create_release
+        with:
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+
