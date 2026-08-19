@@ -2,7 +2,7 @@
 name = "ghrg"
 repository = "https://github.com/ryankurte/ghrg"
 description = "A simple CLI for fetching GitHub release artifacts from (public|private) repositories."
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 license = "MIT"
 
