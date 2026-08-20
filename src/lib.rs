@@ -108,7 +108,8 @@ impl ReleaseClient {
     ) -> Result<(), ReleaseError> {
         debug!("Downloading asset '{}' from URL: {}", asset.name, asset.download_url);
 
-        let mut response = self.client.get(&asset.download_url).send()?;
+        let mut response = self.client.get(&asset.download_url)
+            .header("Accept", "application/octet-stream").send()?;
 
         if !response.status().is_success() {
             let response_text = response
